@@ -23,6 +23,19 @@ jobs:
       # ubuntu-latest already ships the Android SDK ($ANDROID_HOME)
       - uses: gradle/actions/setup-gradle@v4
 
+      # services.gradle.org has been refusing connections from the runner; fall back to
+      # Gradle's official mirror on GitHub Releases for the wrapper distribution.
+      - name: Pick Gradle distribution host
+        run: |
+          if ! curl -sfI --max-time 15 https://services.gradle.org/distributions/ >/dev/null; then
+            echo "services.gradle.org unreachable, using GitHub mirror"
+            sed -i -E 's#https\\://services.gradle.org/distributions/(gradle-([0-9.]+)-bin.zip)#https\\://github.com/gradle/gradle-distributions/releases/download/v\2/\1#' gradle/wrapper/gradle-wrapper.properties
+          fi
+          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
+          for h in dl.google.com repo.maven.apache.org plugins.gradle.org; do
+            curl -sfI --max-time 15 "https://$h/" >/dev/null && echo "$h ok" || echo "$h UNREACHABLE"
+          done
+
       - name: Build release APKs (numen + standard)
         run: |
           chmod +x gradlew
