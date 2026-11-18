@@ -23,18 +23,32 @@ jobs:
       # ubuntu-latest already ships the Android SDK ($ANDROID_HOME)
       - uses: gradle/actions/setup-gradle@v4
 
-      # services.gradle.org has been refusing connections from the runner; fall back to
-      # Gradle's official mirror on GitHub Releases for the wrapper distribution.
-      - name: Pick Gradle distribution host
+      # The runner reaches the internet through an HTTP proxy (curl works via $https_proxy,
+      # but the JVM ignores those env vars and gets "Connection refused"). Pass the proxy
+      # to every JVM, including the Gradle wrapper download, and trust the proxy's CA if set.
+      - name: Configure JVM proxy
         run: |
-          if ! curl -sfI --max-time 15 https://services.gradle.org/distributions/ >/dev/null; then
-            echo "services.gradle.org unreachable, using GitHub mirror"
-            sed -i -E 's#https\\://services.gradle.org/distributions/(gradle-([0-9.]+)-bin.zip)#https\\://github.com/gradle/gradle-distributions/releases/download/v\2/\1#' gradle/wrapper/gradle-wrapper.properties
+          env | grep -i -E '^(https?|no|all)_proxy=' | sed -E 's#(://)[^@/]*@#\1***@#' || echo "no proxy env"
+          P="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-$HTTP_PROXY}}}"
+          OPTS=""
+          if [ -n "$P" ]; then
+            HP="${P#*://}"; HP="${HP##*@}"; HP="${HP%%/*}"
+            HOST="${HP%%:*}"; PORT="${HP##*:}"; [ "$PORT" = "$HP" ] && PORT=80
+            NP="${no_proxy:-$NO_PROXY}"; NP="$(echo "$NP" | tr ',' '|')"
+            OPTS="-Dhttps.proxyHost=$HOST -Dhttps.proxyPort=$PORT -Dhttp.proxyHost=$HOST -Dhttp.proxyPort=$PORT"
+            [ -n "$NP" ] && OPTS="$OPTS -Dhttp.nonProxyHosts=$NP"
           fi
-          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
-          for h in dl.google.com repo.maven.apache.org plugins.gradle.org; do
-            curl -sfI --max-time 15 "https://$h/" >/dev/null && echo "$h ok" || echo "$h UNREACHABLE"
-          done
+          CA="${SSL_CERT_FILE:-${NODE_EXTRA_CA_CERTS:-${REQUESTS_CA_BUNDLE:-}}}"
+          if [ -n "$CA" ] && [ -f "$CA" ]; then
+            cp "$JAVA_HOME/lib/security/cacerts" "$RUNNER_TEMP/cacerts"
+            csplit -s -z -f "$RUNNER_TEMP/ca-" "$CA" '/-----BEGIN CERTIFICATE-----/' '{*}' || true
+            for c in "$RUNNER_TEMP"/ca-*; do
+              keytool -importcert -noprompt -keystore "$RUNNER_TEMP/cacerts" -storepass changeit -alias "$(basename $c)" -file "$c" >/dev/null 2>&1 || true
+            done
+            OPTS="$OPTS -Djavax.net.ssl.trustStore=$RUNNER_TEMP/cacerts -Djavax.net.ssl.trustStorePassword=changeit"
+          fi
+          echo "JVM opts: $OPTS"
+          echo "JAVA_TOOL_OPTIONS=$OPTS" >> "$GITHUB_ENV"
 
       - name: Build release APKs (numen + standard)
         run: |
