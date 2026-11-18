@@ -23,32 +23,12 @@ jobs:
       # ubuntu-latest already ships the Android SDK ($ANDROID_HOME)
       - uses: gradle/actions/setup-gradle@v4
 
-      # The runner reaches the internet through an HTTP proxy (curl works via $https_proxy,
-      # but the JVM ignores those env vars and gets "Connection refused"). Pass the proxy
-      # to every JVM, including the Gradle wrapper download, and trust the proxy's CA if set.
-      - name: Configure JVM proxy
+      # curl falls back from IPv6 to IPv4, the JVM does not: on this runner the JVM got
+      # "Connection refused" from services.gradle.org. Force IPv4 for every JVM.
+      - name: Network check
         run: |
-          env | grep -i -E '^(https?|no|all)_proxy=' | sed -E 's#(://)[^@/]*@#\1***@#' || echo "no proxy env"
-          P="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-$HTTP_PROXY}}}"
-          OPTS=""
-          if [ -n "$P" ]; then
-            HP="${P#*://}"; HP="${HP##*@}"; HP="${HP%%/*}"
-            HOST="${HP%%:*}"; PORT="${HP##*:}"; [ "$PORT" = "$HP" ] && PORT=80
-            NP="${no_proxy:-$NO_PROXY}"; NP="$(echo "$NP" | tr ',' '|')"
-            OPTS="-Dhttps.proxyHost=$HOST -Dhttps.proxyPort=$PORT -Dhttp.proxyHost=$HOST -Dhttp.proxyPort=$PORT"
-            [ -n "$NP" ] && OPTS="$OPTS -Dhttp.nonProxyHosts=$NP"
-          fi
-          CA="${SSL_CERT_FILE:-${NODE_EXTRA_CA_CERTS:-${REQUESTS_CA_BUNDLE:-}}}"
-          if [ -n "$CA" ] && [ -f "$CA" ]; then
-            cp "$JAVA_HOME/lib/security/cacerts" "$RUNNER_TEMP/cacerts"
-            csplit -s -z -f "$RUNNER_TEMP/ca-" "$CA" '/-----BEGIN CERTIFICATE-----/' '{*}' || true
-            for c in "$RUNNER_TEMP"/ca-*; do
-              keytool -importcert -noprompt -keystore "$RUNNER_TEMP/cacerts" -storepass changeit -alias "$(basename $c)" -file "$c" >/dev/null 2>&1 || true
-            done
-            OPTS="$OPTS -Djavax.net.ssl.trustStore=$RUNNER_TEMP/cacerts -Djavax.net.ssl.trustStorePassword=changeit"
-          fi
-          echo "JVM opts: $OPTS"
-          echo "JAVA_TOOL_OPTIONS=$OPTS" >> "$GITHUB_ENV"
+          for f in -4 -6; do curl $f -sS -o /dev/null -w "services.gradle.org $f: %{http_code}\n" --max-time 10 https://services.gradle.org/ || true; done
+          echo "JAVA_TOOL_OPTIONS=-Djava.net.preferIPv4Stack=true" >> "$GITHUB_ENV"
 
       - name: Build release APKs (numen + standard)
         run: |
