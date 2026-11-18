@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APKs (numen + standard)
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleNumenRelease assembleStandardRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/numen/release/*.apk out/OpenSwipe-numen.apk
+          cp app/build/outputs/apk/standard/release/*.apk out/OpenSwipe-standard.apk
+          cp deploy/numen/openswipe.json deploy/numen/install.sh out/
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenSwipe-apks
+          path: out/*
+
+      # Rolling pre-release with the latest APKs from every push, so there is a stable
+      # download link that does not need a GitHub login (artifacts do).
+      - name: Publish "latest" pre-release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-${{ github.ref_name == 'main' && 'main' || 'dev' }}
+          name: Latest build (${{ github.ref_name }})
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatic build from `${{ github.ref_name }}` @ ${{ github.sha }}.
+            - **OpenSwipe-numen.apk** — Numen Air U50 build (English, keyboard-safe defaults)
+            - **OpenSwipe-standard.apk** — generic build
+          files: out/*

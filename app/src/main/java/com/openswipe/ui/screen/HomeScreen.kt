@@ -70,12 +70,12 @@ fun HomeScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "⚠️ 建议关闭电池优化",
+                        text = "⚠️ Disable battery optimization",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
                     Text(
-                        text = "未关闭电池优化可能导致手势在后台失效",
+                        text = "With battery optimization on, gestures may stop working in the background",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
                     )
@@ -83,7 +83,7 @@ fun HomeScreen(
                     OutlinedButton(onClick = {
                         PermissionHelper.requestIgnoreBatteryOptimization(context)
                     }) {
-                        Text("去设置")
+                        Text("Open settings")
                     }
                 }
             }
@@ -125,11 +125,11 @@ private fun ServiceStatusCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isConnected) "手势服务已连接" else "手势服务未连接",
+                    text = if (isConnected) "Gesture service connected" else "Gesture service not connected",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = if (isConnected) "手势功能正常运行中" else "点击进行权限设置",
+                    text = if (isConnected) "Gestures are working" else "Tap to set up permissions",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -153,19 +153,19 @@ private fun RuleSummaryCard(ruleSet: com.openswipe.rule.CompiledRuleSet) {
                 .padding(16.dp),
         ) {
             Text(
-                text = if (totalRules > 0) "${totalRules} 条手势规则生效中"
-                       else "无生效规则",
+                text = if (totalRules > 0) "${totalRules} gesture rules active"
+                       else "No active rules",
                 style = MaterialTheme.typography.titleMedium,
             )
             if (activeEdges.isNotEmpty()) {
                 Text(
-                    text = "活跃边缘：$edgeDetails",
+                    text = "Active edges: $edgeDetails",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Text(
-                text = "前往「规则配置」编辑手势规则",
+                text = "Go to Rules to edit gesture rules",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

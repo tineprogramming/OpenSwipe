@@ -10,7 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.widget.Toast
 import androidx.compose.material3.Card
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -29,6 +34,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val config by viewModel.configState.collectAsState()
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -39,7 +45,7 @@ fun SettingsScreen(
     ) {
         // ── Edge trigger width settings ──
         Text(
-            text = "左右边缘触发宽度",
+            text = "Left/right edge trigger width",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -51,7 +57,7 @@ fun SettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(text = "触发区域宽度", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Trigger area width", style = MaterialTheme.typography.titleMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -80,7 +86,7 @@ fun SettingsScreen(
 
         // ── Bottom trigger settings (kept) ──
         Text(
-            text = "底部触发区域",
+            text = "Bottom trigger area",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -93,7 +99,7 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // Height slider
-                Text(text = "触发区域高度", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Trigger area height", style = MaterialTheme.typography.titleMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -115,6 +121,70 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Keyboard avoidance ──
+        Text(
+            text = "Keyboard",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ListItem(
+                    headlineContent = { Text("Pause bottom gesture while keyboard is open") },
+                    supportingContent = { Text("Lets you tap the keyboard's bottom row (space, enter)") },
+                    trailingContent = {
+                        Switch(
+                            checked = config.disableBottomOnIme,
+                            onCheckedChange = { viewModel.setDisableBottomOnIme(it) },
+                        )
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text("Pause side gestures while keyboard is open") },
+                    supportingContent = { Text("Lets you tap keys at the screen edges") },
+                    trailingContent = {
+                        Switch(
+                            checked = config.disableSidesOnIme,
+                            onCheckedChange = { viewModel.setDisableSidesOnIme(it) },
+                        )
+                    },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Config file ──
+        Text(
+            text = "Config file",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = viewModel.configFilePath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        viewModel.importConfig { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                    }) { Text("Import") }
+                    OutlinedButton(onClick = {
+                        viewModel.exportConfig { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                    }) { Text("Export") }
+                }
             }
         }
     }

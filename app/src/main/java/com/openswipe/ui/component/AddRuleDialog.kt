@@ -52,12 +52,12 @@ fun AddRuleDialog(
     var selectedAction by remember { mutableStateOf<ActionNode?>(null) }
     var selectedTriggerMode by remember { mutableStateOf(TriggerMode.SWIPE) }
 
-    val stepTitles = listOf("选择边缘", "选择区段", "选择动作")
+    val stepTitles = listOf("Choose edge", "Choose section", "Choose action")
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("添加规则 - ${stepTitles[step]}")
+            Text("Add rule - ${stepTitles[step]}")
         },
         text = {
             Column(
@@ -67,7 +67,7 @@ fun AddRuleDialog(
             ) {
                 // Step indicator
                 Text(
-                    text = "步骤 ${step + 1} / 3",
+                    text = "Step ${step + 1} / 3",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -90,7 +90,7 @@ fun AddRuleDialog(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "触发模式",
+                            text = "Trigger mode",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -101,7 +101,7 @@ fun AddRuleDialog(
                             FilterChip(
                                 selected = selectedTriggerMode == TriggerMode.SWIPE,
                                 onClick = { selectedTriggerMode = TriggerMode.SWIPE },
-                                label = { Text("滑动（推荐）") },
+                                label = { Text("Swipe (recommended)") },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = OpenSwipePrimary.copy(alpha = 0.15f),
                                 ),
@@ -110,7 +110,7 @@ fun AddRuleDialog(
                             FilterChip(
                                 selected = selectedTriggerMode == TriggerMode.TOUCH,
                                 onClick = { selectedTriggerMode = TriggerMode.TOUCH },
-                                label = { Text("轻触") },
+                                label = { Text("Tap") },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = OpenSwipePrimary.copy(alpha = 0.15f),
                                 ),
@@ -141,7 +141,7 @@ fun AddRuleDialog(
                         else -> false
                     },
                 ) {
-                    Text("下一步")
+                    Text("Next")
                 }
             } else {
                 Button(
@@ -158,18 +158,18 @@ fun AddRuleDialog(
                     },
                     enabled = selectedAction != null,
                 ) {
-                    Text("确认")
+                    Text("OK")
                 }
             }
         },
         dismissButton = {
             if (step > 0) {
                 OutlinedButton(onClick = { step-- }) {
-                    Text("上一步")
+                    Text("Previous")
                 }
             } else {
                 TextButton(onClick = onDismiss) {
-                    Text("取消")
+                    Text("Cancel")
                 }
             }
         },
@@ -183,9 +183,9 @@ private fun EdgeSelector(
     onSelect: (Edge) -> Unit,
 ) {
     val edges = listOf(
-        Triple(Edge.LEFT, "\u2190 左侧", "从左边缘向右滑"),
-        Triple(Edge.RIGHT, "\u2192 右侧", "从右边缘向左滑"),
-        Triple(Edge.BOTTOM, "\u2193 底部", "从底部向上滑"),
+        Triple(Edge.LEFT, "\u2190 Left", "Swipe right from the left edge"),
+        Triple(Edge.RIGHT, "\u2192 Right", "Swipe left from the right edge"),
+        Triple(Edge.BOTTOM, "\u2193 Bottom", "Swipe up from the bottom"),
     )
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -222,12 +222,12 @@ private fun SectionSelector(
         SectionRange.presets(edge)
     } else {
         // Left / Right edges: only full section makes sense for Phase 1
-        listOf("全段" to SectionRange.ALL)
+        listOf("Full" to SectionRange.ALL)
     }
 
     if (options.size == 1) {
         // Auto-select for left/right
-        Text("左右边缘默认使用全段", style = MaterialTheme.typography.bodyMedium)
+        Text("Left/right edges use the full length by default", style = MaterialTheme.typography.bodyMedium)
     }
 
     FlowRow(

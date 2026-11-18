@@ -62,11 +62,11 @@ fun PermissionGuideScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "权限设置",
+            text = "Permissions",
             style = MaterialTheme.typography.headlineMedium,
         )
         Text(
-            text = "OpenSwipe 需要以下权限才能正常工作",
+            text = "OpenSwipe needs these permissions to work",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -76,8 +76,8 @@ fun PermissionGuideScreen(
         // 步骤 1：无障碍服务（必需）
         PermissionCard(
             step = 1,
-            title = "无障碍服务",
-            description = "用于检测触摸手势和执行导航操作。\n请在设置中找到 OpenSwipe 并启用。",
+            title = "Accessibility service",
+            description = "Used to detect touch gestures and perform navigation actions.\nFind OpenSwipe in Settings and turn it on.",
             isGranted = isAccessibilityEnabled,
             required = true,
             onRequest = { PermissionHelper.openAccessibilitySettings(context) },
@@ -86,8 +86,8 @@ fun PermissionGuideScreen(
         // 步骤 2：电池优化白名单（推荐）
         PermissionCard(
             step = 2,
-            title = "忽略电池优化",
-            description = "防止系统在后台杀死手势服务，保持手势持续可用。",
+            title = "Ignore battery optimization",
+            description = "Stops the system from killing the gesture service in the background.",
             isGranted = isBatteryOptimized,
             required = false,
             onRequest = { PermissionHelper.requestIgnoreBatteryOptimization(context) },
@@ -101,7 +101,7 @@ fun PermissionGuideScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = if (isAccessibilityEnabled) "开始使用" else "请先启用无障碍服务",
+                text = if (isAccessibilityEnabled) "Get started" else "Enable the accessibility service first",
             )
         }
     }
@@ -148,12 +148,12 @@ private fun PermissionCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "步骤 $step: $title",
+                            text = "Step $step: $title",
                             style = MaterialTheme.typography.titleMedium,
                         )
                         if (required) {
                             Text(
-                                text = "必需",
+                                text = "Required",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = StatusDisconnected,
                             )
@@ -174,14 +174,14 @@ private fun PermissionCard(
                         onClick = onRequest,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("前往设置")
+                        Text("Open settings")
                     }
                 } else {
                     OutlinedButton(
                         onClick = onRequest,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("前往设置")
+                        Text("Open settings")
                     }
                 }
             }

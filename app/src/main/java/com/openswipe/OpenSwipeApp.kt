@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.openswipe.config.ConfigManager
 import com.openswipe.gesture.GestureConfig
 import com.openswipe.rule.CompiledRuleSet
 import com.openswipe.rule.GestureRuleGraph
@@ -49,12 +50,18 @@ class OpenSwipeApp : Application() {
                     bottomEnabled = prefs[GestureConfig.KEY_BOTTOM_ENABLED] ?: true,
                     edgeTriggerWidthDp = prefs[GestureConfig.KEY_EDGE_TRIGGER_WIDTH] ?: 20f,
                     bottomTriggerHeightDp = prefs[GestureConfig.KEY_BOTTOM_TRIGGER_HEIGHT] ?: 40f,
+                    disableBottomOnIme = prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] ?: true,
+                    disableSidesOnIme = prefs[GestureConfig.KEY_DISABLE_SIDES_ON_IME] ?: false,
                 )
             }
             .stateIn(appScope, SharingStarted.Eagerly, GestureConfig())
 
         // Load rules from DataStore on startup
         appScope.launch(Dispatchers.IO) {
+            // Import a pushed config file (adb push openswipe.json …) if it is new/changed.
+            // If it contains rules, applyRules() inside the import updates the rule set.
+            runCatching { ConfigManager.importIfChanged(this@OpenSwipeApp) }
+            if (_compiledRuleSet.value !== CompiledRuleSet.EMPTY) return@launch
             val prefs = settingsDataStore.data.first()
             val json = prefs[KEY_RULES_JSON]
             val graph = if (json != null) {
@@ -62,8 +69,19 @@ class OpenSwipeApp : Application() {
             } else {
                 Presets.DEFAULT
             }
-            _compiledRuleSet.value = graph.compile()
+            setGraph(graph)
         }
+    }
+
+    /** The rule graph behind [compiledRuleSet]. */
+    @Volatile
+    private var ruleGraph: GestureRuleGraph = Presets.DEFAULT
+
+    fun currentRuleGraph(): GestureRuleGraph = ruleGraph
+
+    private fun setGraph(graph: GestureRuleGraph) {
+        ruleGraph = graph
+        _compiledRuleSet.value = graph.compile()
     }
 
     suspend fun applyRules(graph: GestureRuleGraph) {
@@ -71,7 +89,15 @@ class OpenSwipeApp : Application() {
         settingsDataStore.edit { prefs ->
             prefs[KEY_RULES_JSON] = json
         }
-        _compiledRuleSet.value = graph.compile()
+        setGraph(graph)
+    }
+
+    suspend fun updateDisableBottomOnIme(value: Boolean) {
+        settingsDataStore.edit { prefs -> prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] = value }
+    }
+
+    suspend fun updateDisableSidesOnIme(value: Boolean) {
+        settingsDataStore.edit { prefs -> prefs[GestureConfig.KEY_DISABLE_SIDES_ON_IME] = value }
     }
 
     suspend fun updateEdgeTriggerWidth(dp: Float) {
@@ -99,7 +125,6 @@ class OpenSwipeApp : Application() {
     fun ensureRulesLoadedSync() {
         if (_compiledRuleSet.value !== CompiledRuleSet.EMPTY) return
         try {
-            val prefs = getSharedPreferences("settings_sync", Context.MODE_PRIVATE)
             // DataStore 的底层文件也可以通过 SharedPreferences 的方式同步读取
             // 但更可靠的方式是用 runBlocking 读取 DataStore
             kotlinx.coroutines.runBlocking {
@@ -110,11 +135,11 @@ class OpenSwipeApp : Application() {
                 } else {
                     Presets.DEFAULT
                 }
-                _compiledRuleSet.value = graph.compile()
+                setGraph(graph)
             }
         } catch (e: Exception) {
             // 兜底：使用默认预设
-            _compiledRuleSet.value = Presets.DEFAULT.compile()
+            setGraph(Presets.DEFAULT)
         }
     }
 

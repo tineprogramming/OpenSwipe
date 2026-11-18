@@ -25,6 +25,10 @@ data class GestureConfig(
 
     // 长按
     val holdTimeMs: Long = 500L,
+
+    // Keyboard (IME) avoidance: remove edge sensors while the soft keyboard is showing
+    val disableBottomOnIme: Boolean = true,
+    val disableSidesOnIme: Boolean = false,
 ) {
     companion object {
         val KEY_LEFT_ENABLED = booleanPreferencesKey("edge_left_enabled")
@@ -32,5 +36,7 @@ data class GestureConfig(
         val KEY_BOTTOM_ENABLED = booleanPreferencesKey("edge_bottom_enabled")
         val KEY_EDGE_TRIGGER_WIDTH = floatPreferencesKey("edge_trigger_width_dp")
         val KEY_BOTTOM_TRIGGER_HEIGHT = floatPreferencesKey("bottom_trigger_height_dp")
+        val KEY_DISABLE_BOTTOM_ON_IME = booleanPreferencesKey("disable_bottom_on_ime")
+        val KEY_DISABLE_SIDES_ON_IME = booleanPreferencesKey("disable_sides_on_ime")
     }
 }

@@ -87,13 +87,13 @@ fun RuleListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("手势规则") },
+                title = { Text("Gesture rules") },
                 actions = {
                     val applyEnabled = hasUnapplied && conflicts.isEmpty()
                     TextButton(
                         onClick = {
                             viewModel.applyRules()
-                            Toast.makeText(context, "规则已应用", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Rules applied", Toast.LENGTH_SHORT).show()
                         },
                         enabled = applyEnabled,
                     ) {
@@ -108,7 +108,7 @@ fun RuleListScreen(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            "应用",
+                            "Apply",
                             color = if (applyEnabled)
                                 OpenSwipePrimary
                             else
@@ -122,7 +122,7 @@ fun RuleListScreen(
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("添加规则") },
+                text = { Text("Add rule") },
                 containerColor = OpenSwipePrimary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             )
@@ -142,14 +142,14 @@ fun RuleListScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "预设方案",
+                    text = "Presets",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.width(12.dp))
                 Box {
                     OutlinedButton(onClick = { showPresetMenu = true }) {
-                        Text(activePreset ?: "自定义")
+                        Text(activePreset ?: "Custom")
                     }
                     DropdownMenu(
                         expanded = showPresetMenu,
@@ -190,7 +190,7 @@ fun RuleListScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "${conflicts.size} 条冲突：${conflicts.firstOrNull()?.message ?: ""}",
+                            text = "${conflicts.size} conflicts: ${conflicts.firstOrNull()?.message ?: ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
@@ -207,7 +207,7 @@ fun RuleListScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "暂无规则，请选择预设或添加规则",
+                        text = "No rules yet. Choose a preset or add a rule",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -330,7 +330,7 @@ private fun RuleCard(
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Filled.Close,
-                    contentDescription = "删除规则",
+                    contentDescription = "Delete rule",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

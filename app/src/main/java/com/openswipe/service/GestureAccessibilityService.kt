@@ -7,12 +7,14 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.content.ContextCompat
 import com.openswipe.OpenSwipeApp
 import com.openswipe.action.ActionDispatcher
@@ -49,10 +51,14 @@ class GestureAccessibilityService : AccessibilityService() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         serviceInfo = serviceInfo?.apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            // TYPE_WINDOWS_CHANGED + FLAG_RETRIEVE_INTERACTIVE_WINDOWS let us see when the
+            // soft keyboard (TYPE_INPUT_METHOD window) appears, so edge sensors can step aside.
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.DEFAULT
-            notificationTimeout = 200L
+            flags = AccessibilityServiceInfo.DEFAULT or
+                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            notificationTimeout = 100L
         }
 
         val app = application as OpenSwipeApp
@@ -71,6 +77,7 @@ class GestureAccessibilityService : AccessibilityService() {
 
         gestureEngine.start()
         _serviceState.value = ServiceState.CONNECTED
+        updateImeVisibility()
 
         // 启动前台保活服务 — 关键：防止进程被杀后不恢复
         try {
@@ -103,6 +110,11 @@ class GestureAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        ) {
+            updateImeVisibility()
+        }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString() ?: return
             if (pkg != currentForegroundPackage) {
@@ -110,6 +122,23 @@ class GestureAccessibilityService : AccessibilityService() {
                 gestureEngine.onForegroundAppChanged(pkg)
             }
         }
+    }
+
+    /** Checks the on-screen windows for a visible soft keyboard and tells the engine. */
+    private fun updateImeVisibility() {
+        if (!::gestureEngine.isInitialized) return
+        val visible = try {
+            windows.any { w ->
+                w.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD && run {
+                    val r = Rect()
+                    w.getBoundsInScreen(r)
+                    r.width() > 0 && r.height() > 0
+                }
+            }
+        } catch (_: Exception) {
+            false
+        }
+        gestureEngine.setImeVisible(visible)
     }
 
     override fun onInterrupt() {

@@ -36,6 +36,33 @@ class GestureEngine(
     private val detectors = mutableMapOf<Edge, EdgeGestureDetector>()
     private var currentConfig: GestureConfig = configFlow.value
     private var started = false
+    private var lastRuleSet: CompiledRuleSet? = null
+
+    /** Whether the soft keyboard (IME) window is currently on screen. */
+    private var imeVisible = false
+
+    /**
+     * Called by the accessibility service when the IME window appears/disappears.
+     * Edges configured to avoid the keyboard have their sensor windows removed while
+     * it is visible, so touches on the keyboard's bottom row reach the IME.
+     */
+    fun setImeVisible(visible: Boolean) {
+        if (imeVisible == visible) return
+        imeVisible = visible
+        if (!started) return
+        syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
+    }
+
+    private fun isSuppressedByIme(edge: Edge): Boolean {
+        if (!imeVisible) return false
+        return when (edge) {
+            Edge.BOTTOM -> currentConfig.disableBottomOnIme
+            Edge.LEFT, Edge.RIGHT -> currentConfig.disableSidesOnIme
+        }
+    }
+
+    private fun shouldShow(edge: Edge, ruleSet: CompiledRuleSet): Boolean =
+        ruleSet.hasRulesFor(edge) && !isSuppressedByIme(edge)
 
     fun stop() {
         overlayManager.removeAll()
@@ -43,6 +70,7 @@ class GestureEngine(
         edgeLengths.clear()
         scope.cancel()
         started = false
+        lastRuleSet = null
     }
 
     fun start() {
@@ -52,7 +80,11 @@ class GestureEngine(
                 .collect { (newConfig, ruleSet) ->
                     val old = currentConfig
                     currentConfig = newConfig
-                    if (!started) {
+                    val ruleSetChanged = ruleSet !== lastRuleSet
+                    lastRuleSet = ruleSet
+                    if (!started || ruleSetChanged) {
+                        // New rules may change per-edge trigger modes, which detectors capture
+                        // at creation time — rebuild everything.
                         started = true
                         rebuildOverlays(ruleSet)
                     } else {
@@ -73,22 +105,25 @@ class GestureEngine(
     private fun applyConfigDiff(old: GestureConfig, new: GestureConfig, ruleSet: CompiledRuleSet) {
         // If edge width changed, rebuild all side overlays
         val sideNeedsRebuild = old.edgeTriggerWidthDp != new.edgeTriggerWidthDp
-
         // If bottom height changed, rebuild bottom overlay
         val bottomNeedsRebuild = old.bottomTriggerHeightDp != new.bottomTriggerHeightDp
+        syncEdges(ruleSet, sideNeedsRebuild, bottomNeedsRebuild)
+    }
 
+    /** Add/remove/rebuild edge sensors so they match the rule set and IME state. */
+    private fun syncEdges(ruleSet: CompiledRuleSet, rebuildSides: Boolean, rebuildBottom: Boolean) {
         for (edge in Edge.entries) {
-            val hasRules = ruleSet.hasRulesFor(edge)
+            val show = shouldShow(edge, ruleSet)
             val hadOverlay = detectors.containsKey(edge)
             val needsRebuild = when (edge) {
-                Edge.LEFT, Edge.RIGHT -> sideNeedsRebuild
-                Edge.BOTTOM -> bottomNeedsRebuild
+                Edge.LEFT, Edge.RIGHT -> rebuildSides
+                Edge.BOTTOM -> rebuildBottom
             }
-            if (hadOverlay && !hasRules) {
+            if (hadOverlay && !show) {
                 removeEdge(edge)
-            } else if (!hadOverlay && hasRules) {
+            } else if (!hadOverlay && show) {
                 addEdgeOverlay(edge)
-            } else if (hasRules && needsRebuild) {
+            } else if (show && needsRebuild) {
                 removeEdge(edge)
                 addEdgeOverlay(edge)
             }
@@ -100,7 +135,7 @@ class GestureEngine(
         detectors.clear()
         edgeLengths.clear()
         for (edge in Edge.entries) {
-            if (ruleSet.hasRulesFor(edge)) {
+            if (shouldShow(edge, ruleSet)) {
                 addEdgeOverlay(edge)
             }
         }

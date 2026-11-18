@@ -12,14 +12,48 @@ android {
         applicationId = "com.openswipe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.0.3-fork"
+
+        // English-only resources (drops AndroidX translations too, keeps the APK small).
+        @Suppress("DEPRECATION")
+        resourceConfigurations += "en"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Fixed signing key committed to the repo (personal fork, sideload only) so that every
+    // CI build can be installed over the previous one with `pm install -r`.
+    signingConfigs {
+        create("fork") {
+            storeFile = rootProject.file("keystore/openswipe-fork.jks")
+            storePassword = "openswipe"
+            keyAlias = "openswipe"
+            keyPassword = "openswipe"
+        }
+    }
+
+    flavorDimensions += "device"
+    productFlavors {
+        // Generic build: English UI.
+        create("standard") {
+            dimension = "device"
+        }
+        // Numen Air U50 (Android 11, 240x320): English only, keyboard-safe defaults.
+        // Defaults: left=Back, right=Back, bottom=Home (swipe-only, taps pass through),
+        // bottom gesture paused while the soft keyboard is open.
+        create("numen") {
+            dimension = "device"
+            versionNameSuffix = "-numen"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("fork")
+        }
         release {
+            signingConfig = signingConfigs.getByName("fork")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

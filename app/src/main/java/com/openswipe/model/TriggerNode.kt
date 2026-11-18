@@ -34,12 +34,12 @@ data class SectionRange(
         fun presets(edge: Edge): List<Pair<String, SectionRange>> {
             val isVertical = edge == Edge.LEFT || edge == Edge.RIGHT
             return listOf(
-                "全段" to ALL,
-                (if (isVertical) "上1/3" else "左1/3") to thirds(0),
-                "中1/3" to thirds(1),
-                (if (isVertical) "下1/3" else "右1/3") to thirds(2),
-                (if (isVertical) "上半" else "左半") to halves(0),
-                (if (isVertical) "下半" else "右半") to halves(1),
+                "Full" to ALL,
+                (if (isVertical) "Top 1/3" else "Left 1/3") to thirds(0),
+                "Middle 1/3" to thirds(1),
+                (if (isVertical) "Bottom 1/3" else "Right 1/3") to thirds(2),
+                (if (isVertical) "Top half" else "Left half") to halves(0),
+                (if (isVertical) "Bottom half" else "Right half") to halves(1),
             )
         }
     }
