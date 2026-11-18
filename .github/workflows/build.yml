@@ -23,13 +23,6 @@ jobs:
       # ubuntu-latest already ships the Android SDK ($ANDROID_HOME)
       - uses: gradle/actions/setup-gradle@v4
 
-      # curl falls back from IPv6 to IPv4, the JVM does not: on this runner the JVM got
-      # "Connection refused" from services.gradle.org. Force IPv4 for every JVM.
-      - name: Network check
-        run: |
-          for f in -4 -6; do curl $f -sS -o /dev/null -w "services.gradle.org $f: %{http_code}\n" --max-time 10 https://services.gradle.org/ || true; done
-          echo "JAVA_TOOL_OPTIONS=-Djava.net.preferIPv4Stack=true" >> "$GITHUB_ENV"
-
       - name: Build release APKs (numen + standard)
         run: |
           chmod +x gradlew
