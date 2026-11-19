@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 data class GestureConfig(
     // 触发区域
     val edgeTriggerWidthDp: Float = 20f,
-    val bottomTriggerHeightDp: Float = 40f,
+    val bottomTriggerHeightDp: Float = com.openswipe.BuildConfig.DEFAULT_BOTTOM_HEIGHT_DP,
     val leftEnabled: Boolean = true,
     val rightEnabled: Boolean = true,
     val bottomEnabled: Boolean = true,

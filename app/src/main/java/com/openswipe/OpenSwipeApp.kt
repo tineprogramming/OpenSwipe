@@ -49,7 +49,7 @@ class OpenSwipeApp : Application() {
                     rightEnabled = prefs[GestureConfig.KEY_RIGHT_ENABLED] ?: true,
                     bottomEnabled = prefs[GestureConfig.KEY_BOTTOM_ENABLED] ?: true,
                     edgeTriggerWidthDp = prefs[GestureConfig.KEY_EDGE_TRIGGER_WIDTH] ?: 20f,
-                    bottomTriggerHeightDp = prefs[GestureConfig.KEY_BOTTOM_TRIGGER_HEIGHT] ?: 40f,
+                    bottomTriggerHeightDp = prefs[GestureConfig.KEY_BOTTOM_TRIGGER_HEIGHT] ?: BuildConfig.DEFAULT_BOTTOM_HEIGHT_DP,
                     disableBottomOnIme = prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] ?: true,
                     disableSidesOnIme = prefs[GestureConfig.KEY_DISABLE_SIDES_ON_IME] ?: false,
                 )

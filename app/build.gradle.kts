@@ -38,6 +38,7 @@ android {
         // Generic build: English UI.
         create("standard") {
             dimension = "device"
+            buildConfigField("float", "DEFAULT_BOTTOM_HEIGHT_DP", "40f")
         }
         // Numen Air U50 (Android 11, 240x320): English only, keyboard-safe defaults.
         // Defaults: left=Back, right=Back, bottom=Home (swipe-only, taps pass through),
@@ -45,6 +46,8 @@ android {
         create("numen") {
             dimension = "device"
             versionNameSuffix = "-numen"
+            // 40dp covered the bottom row of apps on the 240x320 screen; 20dp works.
+            buildConfigField("float", "DEFAULT_BOTTOM_HEIGHT_DP", "20f")
         }
     }
 
@@ -73,6 +76,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

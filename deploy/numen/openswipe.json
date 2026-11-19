@@ -2,7 +2,7 @@
   "version": 1,
   "settings": {
     "edgeTriggerWidthDp": 20,
-    "bottomTriggerHeightDp": 40,
+    "bottomTriggerHeightDp": 20,
     "disableBottomOnIme": true,
     "disableSidesOnIme": false
   },
