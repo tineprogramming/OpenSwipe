@@ -182,11 +182,23 @@ class GestureAccessibilityService : AccessibilityService() {
         return performGlobalAction(actionId)
     }
 
-    fun dispatchTap(x: Float, y: Float) {
+    /**
+     * Injects a tap (or long-press, if [durationMs] is long) at (x, y).
+     * [onDone] is always called once, whether the gesture completed, was cancelled or failed.
+     */
+    fun dispatchTap(x: Float, y: Float, durationMs: Long = 50L, onDone: () -> Unit = {}) {
         val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 1)
+        val stroke = GestureDescription.StrokeDescription(path, 0, durationMs.coerceIn(1L, 10_000L))
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        dispatchGesture(gesture, null, null)
+        val ok = try {
+            dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) = onDone()
+                override fun onCancelled(gestureDescription: GestureDescription?) = onDone()
+            }, null)
+        } catch (_: Exception) {
+            false
+        }
+        if (!ok) onDone()
     }
 
     enum class ServiceState { DISCONNECTED, CONNECTED }

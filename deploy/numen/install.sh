@@ -29,7 +29,10 @@ if [ -f "$CFG" ]; then
     adb push "$CFG" /sdcard/openswipe.json
 fi
 
-# Enable accessibility service
+# Enable accessibility service (off -> on, so the service rebinds with the new
+# capabilities, e.g. canPerformGestures for passing taps through the edge sensors)
+adb shell settings put secure enabled_accessibility_services null
+sleep 1
 adb shell settings put secure enabled_accessibility_services $SVC
 adb shell settings put secure accessibility_enabled 1
 

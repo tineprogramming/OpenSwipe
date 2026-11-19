@@ -39,6 +39,16 @@ class OverlayManager(
         }
     }
 
+    /** Makes a sensor window ignore touches (so injected taps reach the app below) or not. */
+    fun setTouchable(tag: String, touchable: Boolean) {
+        val window = windows[tag] ?: return
+        val flag = LayoutParams.FLAG_NOT_TOUCHABLE
+        val newFlags = if (touchable) window.params.flags and flag.inv() else window.params.flags or flag
+        if (newFlags == window.params.flags) return
+        window.params.flags = newFlags
+        updateWindow(tag)
+    }
+
     fun removeAll() {
         windows.keys.toList().forEach { removeWindow(it) }
     }

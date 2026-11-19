@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -208,10 +209,30 @@ class GestureEngine(
             scaledTouchSlop = touchSlop,
             onGestureResult = { result -> handleGestureResult(result) },
             triggerMode = edgeTriggerMode,
-            onReplayTap = if (edgeTriggerMode == TriggerMode.SWIPE) { x, y ->
-                GestureAccessibilityService.getInstance()?.dispatchTap(x, y)
+            onReplayTap = if (edgeTriggerMode == TriggerMode.SWIPE) { x, y, duration ->
+                replayTap(edge, x, y, duration)
             } else null,
         )
+    }
+
+    /**
+     * Pass a non-swipe touch through to the app under the sensor: make the sensor window
+     * untouchable, wait for the window update to land, inject the tap, then restore it.
+     * Without the untouchable step the injected tap would hit our own sensor again.
+     */
+    private fun replayTap(edge: Edge, x: Float, y: Float, durationMs: Long) {
+        val service = GestureAccessibilityService.getInstance() ?: return
+        val tag = "sensor_${edge.name.lowercase()}"
+        overlayManager.setTouchable(tag, false)
+        scope.launch {
+            delay(REPLAY_WINDOW_UPDATE_DELAY_MS)
+            service.dispatchTap(x, y, durationMs.coerceAtLeast(MIN_TAP_DURATION_MS)) {
+                scope.launch {
+                    delay(REPLAY_WINDOW_UPDATE_DELAY_MS)
+                    overlayManager.setTouchable(tag, true)
+                }
+            }
+        }
     }
 
     /** Map of edge → current sensor length in pixels, updated when overlays are created. */
@@ -249,5 +270,11 @@ class GestureEngine(
 
     override fun onEdgeTouch(edge: Edge, event: MotionEvent): Boolean {
         return detectors[edge]?.onTouchEvent(event) ?: false
+    }
+
+    private companion object {
+        /** Time for WindowManager to apply the FLAG_NOT_TOUCHABLE change before injecting. */
+        const val REPLAY_WINDOW_UPDATE_DELAY_MS = 40L
+        const val MIN_TAP_DURATION_MS = 40L
     }
 }

@@ -8,4 +8,4 @@
     android:canRetrieveWindowContent="true"
     android:canRequestTouchExplorationMode="false"
     android:notificationTimeout="100"
-    android:canPerformGestures="false" />
+    android:canPerformGestures="true" />
