@@ -12,14 +12,59 @@ android {
         applicationId = "com.openswipe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 5
+        versionName = "1.0.5-fork"
+
+        // English-only resources (drops AndroidX translations too, keeps the APK small).
+        @Suppress("DEPRECATION")
+        resourceConfigurations += "en"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Fixed signing key committed to the repo (personal fork, sideload only) so that every
+    // CI build can be installed over the previous one with `pm install -r`.
+    signingConfigs {
+        create("fork") {
+            storeFile = rootProject.file("keystore/openswipe-fork.jks")
+            storePassword = "openswipe"
+            keyAlias = "openswipe"
+            keyPassword = "openswipe"
+        }
+    }
+
+    flavorDimensions += "device"
+    productFlavors {
+        // Generic build: English UI.
+        create("standard") {
+            dimension = "device"
+            buildConfigField("float", "DEFAULT_BOTTOM_HEIGHT_DP", "40f")
+            buildConfigField("String", "DEFAULT_BLOCKED_ACTIVITIES", "\"\"")
+        }
+        // Numen Air U50 (Android 11, 240x320): English only, keyboard-safe defaults.
+        // Defaults: left=Back, right=Back, bottom=Home (swipe-only, taps pass through),
+        // bottom gesture paused while the soft keyboard is open.
+        create("numen") {
+            dimension = "device"
+            versionNameSuffix = "-numen"
+            // 40dp covered the bottom row of apps on the 240x320 screen; 20dp works.
+            buildConfigField("float", "DEFAULT_BOTTOM_HEIGHT_DP", "20f")
+            // Gestures paused in front of these. The g4home lock screen's "swipe up to
+            // unlock" starts in our bottom Home zone, so unlocking jumped to the launcher.
+            buildConfigField(
+                "String", "DEFAULT_BLOCKED_ACTIVITIES",
+                "\"com.glocalme.g4home/com.glocalme.basic.lock.LockScreenActivity," +
+                    "com.glocalme.g4home/com.glocalme.basic.lock.FirstLockScreenActivity\"",
+            )
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("fork")
+        }
         release {
+            signingConfig = signingConfigs.getByName("fork")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -39,6 +84,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

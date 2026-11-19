@@ -39,6 +39,24 @@ class OverlayManager(
         }
     }
 
+    /** Makes a sensor window ignore touches (so injected taps reach the app below) or not. */
+    fun setTouchable(tag: String, touchable: Boolean) {
+        val window = windows[tag] ?: return
+        val flag = LayoutParams.FLAG_NOT_TOUCHABLE
+        val newFlags = if (touchable) window.params.flags and flag.inv() else window.params.flags or flag
+        if (newFlags == window.params.flags) return
+        window.params.flags = newFlags
+        updateWindow(tag)
+    }
+
+    /** Changes a sensor window's height in place (no-op if unchanged or missing). */
+    fun setHeight(tag: String, heightPx: Int) {
+        val window = windows[tag] ?: return
+        if (window.params.height == heightPx) return
+        window.params.height = heightPx
+        updateWindow(tag)
+    }
+
     fun removeAll() {
         windows.keys.toList().forEach { removeWindow(it) }
     }

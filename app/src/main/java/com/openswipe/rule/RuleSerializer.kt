@@ -12,7 +12,9 @@ import org.json.JSONObject
 
 object RuleSerializer {
 
-    fun GestureRuleGraph.toJson(): String {
+    fun GestureRuleGraph.toJson(): String = toJsonObject().toString(2)
+
+    fun GestureRuleGraph.toJsonObject(): JSONObject {
         val root = JSONObject()
         root.put("version", 1)
         val rulesArray = JSONArray()
@@ -41,7 +43,7 @@ object RuleSerializer {
             rulesArray.put(ruleObj)
         }
         root.put("rules", rulesArray)
-        return root.toString(2)
+        return root
     }
 
     fun String.toGestureRuleGraph(): GestureRuleGraph {

@@ -57,6 +57,10 @@ private fun OpenSwipeApp() {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route ?: "home"
+    // One shared instance for the rule list and rule detail screens. Previously each
+    // destination got its own ViewModel, so edits made in the detail screen were lost
+    // and pressing Apply on the list saved its stale copy.
+    val ruleConfigViewModel: RuleConfigViewModel = viewModel()
 
     Scaffold(
         topBar = {
@@ -66,8 +70,8 @@ private fun OpenSwipeApp() {
                         Text(
                             text = when {
                                 currentRoute == "home" -> "OpenSwipe"
-                                currentRoute == "permissions" -> "权限设置"
-                                currentRoute == "settings" -> "设置"
+                                currentRoute == "permissions" -> "Permissions"
+                                currentRoute == "settings" -> "Settings"
                                 else -> "OpenSwipe"
                             }
                         )
@@ -111,7 +115,6 @@ private fun OpenSwipeApp() {
                 )
             }
             composable("rules") {
-                val ruleConfigViewModel: RuleConfigViewModel = viewModel()
                 RuleListScreen(
                     viewModel = ruleConfigViewModel,
                     onRuleClick = { ruleId ->
@@ -124,7 +127,6 @@ private fun OpenSwipeApp() {
                 arguments = listOf(navArgument("ruleId") { type = NavType.StringType }),
             ) { backStackEntry ->
                 val ruleId = backStackEntry.arguments?.getString("ruleId") ?: return@composable
-                val ruleConfigViewModel: RuleConfigViewModel = viewModel()
                 RuleDetailScreen(
                     ruleId = ruleId,
                     viewModel = ruleConfigViewModel,
@@ -142,8 +144,8 @@ private fun OpenSwipeBottomBar(
 ) {
     NavigationBar {
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Home, contentDescription = "主页") },
-            label = { Text("主页") },
+            icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+            label = { Text("Home") },
             selected = currentRoute == "home",
             onClick = {
                 if (currentRoute != "home") {
@@ -154,8 +156,8 @@ private fun OpenSwipeBottomBar(
             },
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Edit, contentDescription = "规则") },
-            label = { Text("规则") },
+            icon = { Icon(Icons.Filled.Edit, contentDescription = "Rules") },
+            label = { Text("Rules") },
             selected = currentRoute == "rules",
             onClick = {
                 if (currentRoute != "rules") {
@@ -168,8 +170,8 @@ private fun OpenSwipeBottomBar(
             },
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Settings, contentDescription = "设置") },
-            label = { Text("设置") },
+            icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
+            label = { Text("Settings") },
             selected = currentRoute == "settings",
             onClick = {
                 if (currentRoute != "settings") {

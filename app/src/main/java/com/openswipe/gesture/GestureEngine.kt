@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -36,6 +37,96 @@ class GestureEngine(
     private val detectors = mutableMapOf<Edge, EdgeGestureDetector>()
     private var currentConfig: GestureConfig = configFlow.value
     private var started = false
+    private var lastRuleSet: CompiledRuleSet? = null
+
+    /** Screen Y (px) of the top of the soft keyboard window, or null when it is hidden. */
+    private var imeTopPx: Int? = null
+
+    /**
+     * Called by the accessibility service when the IME window appears, moves or hides
+     * ([topPx] = its top edge in screen pixels, null = hidden).
+     *  - BOTTOM sensor is removed while it is visible (disableBottomOnIme).
+     *  - LEFT/RIGHT sensors are shortened to end at the keyboard's top, so Back still works
+     *    above it and the outer keys (q, p, a, l, z, m) are not covered.
+     *    (Tap pass-through can't reach the IME window, so overlapping it isn't an option.)
+     */
+    fun setImeTop(topPx: Int?) {
+        if (imeTopPx == topPx) return
+        imeTopPx = topPx
+        if (!started) return
+        syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
+        resizeSideSensors()
+    }
+
+    /** Height for a LEFT/RIGHT sensor: full screen, or down to the keyboard's top. */
+    private fun sideSensorHeight(screenHeight: Int): Int =
+        imeTopPx?.coerceIn(0, screenHeight) ?: screenHeight
+
+    private fun resizeSideSensors() {
+        val screenHeight = Resources.getSystem().displayMetrics.heightPixels
+        val h = sideSensorHeight(screenHeight)
+        for (edge in listOf(Edge.LEFT, Edge.RIGHT)) {
+            overlayManager.setHeight("sensor_${edge.name.lowercase()}", h)
+        }
+    }
+
+    /** Whether the foreground activity is on the blocklist (all edges paused). */
+    private var foregroundBlocked = false
+    private var foregroundPkg: String? = null
+    private var foregroundCls: String? = null
+    private var blocklistSource: List<String>? = null
+    private var blocklistCache: ForegroundBlocklist = ForegroundBlocklist.EMPTY
+
+    /** Blocklist for the current config (rebuilt only when the list changes). */
+    val blocklist: ForegroundBlocklist
+        get() {
+            val src = currentConfig.blockedActivities
+            if (src != blocklistSource) {
+                blocklistSource = src
+                blocklistCache = ForegroundBlocklist(src)
+            }
+            return blocklistCache
+        }
+
+    /** Called by the service when a new *activity* comes to the front. */
+    fun onForegroundActivityChanged(packageName: String, className: String) {
+        foregroundPkg = packageName
+        foregroundCls = className
+        reevaluateForegroundBlock()
+    }
+
+    /**
+     * Safety net: the service saw a different app's window become active without an activity
+     * event we could classify. Only unblocks, never blocks.
+     */
+    fun onActiveAppChanged(packageName: String) {
+        if (foregroundBlocked && packageName != foregroundPkg) {
+            foregroundPkg = packageName
+            foregroundCls = null
+            reevaluateForegroundBlock()
+        }
+    }
+
+    private fun reevaluateForegroundBlock() {
+        val pkg = foregroundPkg
+        val blocked = pkg != null && blocklist.matches(pkg, foregroundCls)
+        if (blocked == foregroundBlocked) return
+        foregroundBlocked = blocked
+        if (started) syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
+    }
+
+    private fun isSuppressed(edge: Edge): Boolean {
+        if (foregroundBlocked) return true
+        val imeTop = imeTopPx ?: return false
+        return when (edge) {
+            Edge.BOTTOM -> currentConfig.disableBottomOnIme
+            // Keyboard covering (almost) the whole screen leaves no room above it.
+            Edge.LEFT, Edge.RIGHT -> currentConfig.disableSidesOnIme || imeTop < MIN_SIDE_SENSOR_PX
+        }
+    }
+
+    private fun shouldShow(edge: Edge, ruleSet: CompiledRuleSet): Boolean =
+        ruleSet.hasRulesFor(edge) && !isSuppressed(edge)
 
     fun stop() {
         overlayManager.removeAll()
@@ -43,6 +134,7 @@ class GestureEngine(
         edgeLengths.clear()
         scope.cancel()
         started = false
+        lastRuleSet = null
     }
 
     fun start() {
@@ -52,7 +144,11 @@ class GestureEngine(
                 .collect { (newConfig, ruleSet) ->
                     val old = currentConfig
                     currentConfig = newConfig
-                    if (!started) {
+                    val ruleSetChanged = ruleSet !== lastRuleSet
+                    lastRuleSet = ruleSet
+                    if (!started || ruleSetChanged) {
+                        // New rules may change per-edge trigger modes, which detectors capture
+                        // at creation time — rebuild everything.
                         started = true
                         rebuildOverlays(ruleSet)
                     } else {
@@ -71,24 +167,31 @@ class GestureEngine(
     }
 
     private fun applyConfigDiff(old: GestureConfig, new: GestureConfig, ruleSet: CompiledRuleSet) {
+        if (old.blockedActivities != new.blockedActivities) {
+            val pkg = foregroundPkg
+            foregroundBlocked = pkg != null && blocklist.matches(pkg, foregroundCls)
+        }
         // If edge width changed, rebuild all side overlays
         val sideNeedsRebuild = old.edgeTriggerWidthDp != new.edgeTriggerWidthDp
-
         // If bottom height changed, rebuild bottom overlay
         val bottomNeedsRebuild = old.bottomTriggerHeightDp != new.bottomTriggerHeightDp
+        syncEdges(ruleSet, sideNeedsRebuild, bottomNeedsRebuild)
+    }
 
+    /** Add/remove/rebuild edge sensors so they match the rule set and IME state. */
+    private fun syncEdges(ruleSet: CompiledRuleSet, rebuildSides: Boolean, rebuildBottom: Boolean) {
         for (edge in Edge.entries) {
-            val hasRules = ruleSet.hasRulesFor(edge)
+            val show = shouldShow(edge, ruleSet)
             val hadOverlay = detectors.containsKey(edge)
             val needsRebuild = when (edge) {
-                Edge.LEFT, Edge.RIGHT -> sideNeedsRebuild
-                Edge.BOTTOM -> bottomNeedsRebuild
+                Edge.LEFT, Edge.RIGHT -> rebuildSides
+                Edge.BOTTOM -> rebuildBottom
             }
-            if (hadOverlay && !hasRules) {
+            if (hadOverlay && !show) {
                 removeEdge(edge)
-            } else if (!hadOverlay && hasRules) {
+            } else if (!hadOverlay && show) {
                 addEdgeOverlay(edge)
-            } else if (hasRules && needsRebuild) {
+            } else if (show && needsRebuild) {
                 removeEdge(edge)
                 addEdgeOverlay(edge)
             }
@@ -100,7 +203,7 @@ class GestureEngine(
         detectors.clear()
         edgeLengths.clear()
         for (edge in Edge.entries) {
-            if (ruleSet.hasRulesFor(edge)) {
+            if (shouldShow(edge, ruleSet)) {
                 addEdgeOverlay(edge)
             }
         }
@@ -133,7 +236,7 @@ class GestureEngine(
             Edge.LEFT -> {
                 val detector = createDetector(Edge.LEFT, screenHeight.toFloat())
                 val window = OverlayWindowFactory.createEdgeSensor(
-                    overlayManager.context, Edge.LEFT, edgeWidthPx, screenHeight,
+                    overlayManager.context, Edge.LEFT, edgeWidthPx, sideSensorHeight(screenHeight),
                     onTouchListener = this
                 )
                 detectors[Edge.LEFT] = detector
@@ -143,7 +246,7 @@ class GestureEngine(
             Edge.RIGHT -> {
                 val detector = createDetector(Edge.RIGHT, screenHeight.toFloat())
                 val window = OverlayWindowFactory.createEdgeSensor(
-                    overlayManager.context, Edge.RIGHT, edgeWidthPx, screenHeight,
+                    overlayManager.context, Edge.RIGHT, edgeWidthPx, sideSensorHeight(screenHeight),
                     onTouchListener = this
                 )
                 detectors[Edge.RIGHT] = detector
@@ -173,10 +276,30 @@ class GestureEngine(
             scaledTouchSlop = touchSlop,
             onGestureResult = { result -> handleGestureResult(result) },
             triggerMode = edgeTriggerMode,
-            onReplayTap = if (edgeTriggerMode == TriggerMode.SWIPE) { x, y ->
-                GestureAccessibilityService.getInstance()?.dispatchTap(x, y)
+            onReplayTap = if (edgeTriggerMode == TriggerMode.SWIPE) { x, y, duration ->
+                replayTap(edge, x, y, duration)
             } else null,
         )
+    }
+
+    /**
+     * Pass a non-swipe touch through to the app under the sensor: make the sensor window
+     * untouchable, wait for the window update to land, inject the tap, then restore it.
+     * Without the untouchable step the injected tap would hit our own sensor again.
+     */
+    private fun replayTap(edge: Edge, x: Float, y: Float, durationMs: Long) {
+        val service = GestureAccessibilityService.getInstance() ?: return
+        val tag = "sensor_${edge.name.lowercase()}"
+        overlayManager.setTouchable(tag, false)
+        scope.launch {
+            delay(REPLAY_WINDOW_UPDATE_DELAY_MS)
+            service.dispatchTap(x, y, durationMs.coerceAtLeast(MIN_TAP_DURATION_MS)) {
+                scope.launch {
+                    delay(REPLAY_WINDOW_UPDATE_DELAY_MS)
+                    overlayManager.setTouchable(tag, true)
+                }
+            }
+        }
     }
 
     /** Map of edge → current sensor length in pixels, updated when overlays are created. */
@@ -214,5 +337,13 @@ class GestureEngine(
 
     override fun onEdgeTouch(edge: Edge, event: MotionEvent): Boolean {
         return detectors[edge]?.onTouchEvent(event) ?: false
+    }
+
+    private companion object {
+        /** Time for WindowManager to apply the FLAG_NOT_TOUCHABLE change before injecting. */
+        const val REPLAY_WINDOW_UPDATE_DELAY_MS = 40L
+        const val MIN_TAP_DURATION_MS = 40L
+        /** Below this, a shortened side sensor is pointless; remove it instead. */
+        const val MIN_SIDE_SENSOR_PX = 24
     }
 }

@@ -81,21 +81,21 @@ fun RuleDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("规则详情") },
+                title = { Text("Rule details") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         viewModel.applyRules()
                         scope.launch {
-                            snackbarHostState.showSnackbar("已保存")
+                            snackbarHostState.showSnackbar("Saved")
                         }
                         onNavigateBack()
                     }) {
-                        Icon(Icons.Filled.Check, contentDescription = "保存")
+                        Icon(Icons.Filled.Check, contentDescription = "Save")
                     }
                 },
             )
@@ -110,7 +110,7 @@ fun RuleDetailScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("规则不存在", style = MaterialTheme.typography.bodyLarge)
+                Text("Rule not found", style = MaterialTheme.typography.bodyLarge)
             }
             return@Scaffold
         }
@@ -126,9 +126,9 @@ fun RuleDetailScreen(
             // ── Enable/Disable ──
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 ListItem(
-                    headlineContent = { Text("启用规则") },
+                    headlineContent = { Text("Enable rule") },
                     supportingContent = {
-                        Text(if (rule.enabled) "已启用" else "已禁用")
+                        Text(if (rule.enabled) "Enabled" else "Disabled")
                     },
                     trailingContent = {
                         Switch(
@@ -143,7 +143,7 @@ fun RuleDetailScreen(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "触发条件",
+                        text = "Trigger",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -154,7 +154,7 @@ fun RuleDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("边缘", modifier = Modifier.weight(1f))
+                        Text("Edge", modifier = Modifier.weight(1f))
                         androidx.compose.foundation.layout.Box {
                             OutlinedButton(onClick = { showEdgeMenu = true }) {
                                 Text("${edgeIcon(rule.trigger.edge)} ${edgeLabel(rule.trigger.edge)}")
@@ -186,7 +186,7 @@ fun RuleDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("区段", modifier = Modifier.weight(1f))
+                        Text("Section", modifier = Modifier.weight(1f))
                         val sectionOptions = SectionRange.presets(rule.trigger.edge)
                         androidx.compose.foundation.layout.Box {
                             OutlinedButton(onClick = { showSectionMenu = true }) {
@@ -219,7 +219,7 @@ fun RuleDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("手势类型", modifier = Modifier.weight(1f))
+                        Text("Gesture type", modifier = Modifier.weight(1f))
                         Text(
                             text = gestureLabel(rule.trigger.gestureType),
                             style = MaterialTheme.typography.bodyMedium,
@@ -233,7 +233,7 @@ fun RuleDetailScreen(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "触发模式",
+                        text = "Trigger mode",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -252,9 +252,9 @@ fun RuleDetailScreen(
                         ) {
                             RadioButton(selected = rule.triggerMode == TriggerMode.SWIPE, onClick = null)
                             Column(modifier = Modifier.padding(start = 8.dp)) {
-                                Text("滑动", style = MaterialTheme.typography.bodyLarge)
+                                Text("Swipe", style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    "仅滑动触发，点击穿透到下层App",
+                                    "Triggers on swipe only; taps pass through to the app below",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -273,9 +273,9 @@ fun RuleDetailScreen(
                         ) {
                             RadioButton(selected = rule.triggerMode == TriggerMode.TOUCH, onClick = null)
                             Column(modifier = Modifier.padding(start = 8.dp)) {
-                                Text("轻触", style = MaterialTheme.typography.bodyLarge)
+                                Text("Tap", style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    "触碰即检测（触碰就响应）",
+                                    "Triggers on touch (responds immediately)",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -288,13 +288,13 @@ fun RuleDetailScreen(
             // ── Action ──
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 ListItem(
-                    headlineContent = { Text("执行动作") },
+                    headlineContent = { Text("Action") },
                     supportingContent = {
                         Text("${actionIcon(rule.action)} ${rule.action.label}")
                     },
                     trailingContent = {
                         OutlinedButton(onClick = { showActionPicker = true }) {
-                            Text("更换")
+                            Text("Change")
                         }
                     },
                 )
@@ -311,7 +311,7 @@ fun RuleDetailScreen(
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("删除规则")
+                Text("Delete rule")
             }
         }
     }
@@ -331,20 +331,20 @@ fun RuleDetailScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除此规则吗？此操作不可撤销。") },
+            title = { Text("Confirm delete") },
+            text = { Text("Delete this rule? This can't be undone.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.removeRule(ruleId)
                     showDeleteConfirm = false
                     onNavigateBack()
                 }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("取消")
+                    Text("Cancel")
                 }
             },
         )

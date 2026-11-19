@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.openswipe">
 
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -7,6 +8,14 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Optional: lets the app read /sdcard/openswipe.json. Grant via adb:
+         appops set com.openswipe MANAGE_EXTERNAL_STORAGE allow -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Sideload-only fork: needed so PackageManager can tell activity classes of other apps
+         (blocklist) from views/dialogs on Android 11+ package visibility. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:name=".OpenSwipeApp"
@@ -42,6 +51,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- adb config import/export. DUMP permission = only shell/system can send. -->
+        <receiver
+            android:name=".config.ConfigReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.openswipe.action.IMPORT_CONFIG" />
+                <action android:name="com.openswipe.action.EXPORT_CONFIG" />
             </intent-filter>
         </receiver>
 

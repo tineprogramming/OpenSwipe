@@ -51,13 +51,14 @@ class RuleConfigViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             val app = getApplication<Application>() as OpenSwipeApp
             val savedGraph = app.loadSavedRules()
-            if (savedGraph != null && savedGraph.rules.isNotEmpty()) {
+            // A saved empty rule list is a valid user choice — don't reset it to the default.
+            if (savedGraph != null) {
                 _rules.value = savedGraph.rules
                 _appliedRules.value = savedGraph.rules
                 _activePresetName.value = null
                 revalidate()
             } else {
-                loadPreset("默认", Presets.DEFAULT)
+                loadPreset("Default", Presets.DEFAULT)
                 applyRules()
             }
         }
@@ -142,7 +143,7 @@ class RuleConfigViewModel(application: Application) : AndroidViewModel(applicati
             Conflict(
                 ruleA = c.ruleA,
                 ruleB = c.ruleB,
-                message = "${edgeLabel(c.ruleA.trigger.edge)} ${gestureLabel(c.ruleA.trigger.gestureType)} 区段冲突",
+                message = "${edgeLabel(c.ruleA.trigger.edge)} ${gestureLabel(c.ruleA.trigger.gestureType)} section conflict",
             )
         }
     }
@@ -153,9 +154,9 @@ class RuleConfigViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val presets: List<Pair<String, GestureRuleGraph>> = listOf(
-            "iOS 风格" to Presets.IOS_STYLE,
-            "Android 经典" to Presets.ANDROID_CLASSIC,
-            "媒体控制" to Presets.MEDIA_CONTROL,
+            "iOS style" to Presets.IOS_STYLE,
+            "Android classic" to Presets.ANDROID_CLASSIC,
+            "Media control" to Presets.MEDIA_CONTROL,
         )
     }
 }

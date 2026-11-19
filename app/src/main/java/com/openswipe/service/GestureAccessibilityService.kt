@@ -3,16 +3,20 @@ package com.openswipe.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.content.ContextCompat
 import com.openswipe.OpenSwipeApp
 import com.openswipe.action.ActionDispatcher
@@ -49,10 +53,14 @@ class GestureAccessibilityService : AccessibilityService() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         serviceInfo = serviceInfo?.apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            // TYPE_WINDOWS_CHANGED + FLAG_RETRIEVE_INTERACTIVE_WINDOWS let us see when the
+            // soft keyboard (TYPE_INPUT_METHOD window) appears, so edge sensors can step aside.
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.DEFAULT
-            notificationTimeout = 200L
+            flags = AccessibilityServiceInfo.DEFAULT or
+                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            notificationTimeout = 100L
         }
 
         val app = application as OpenSwipeApp
@@ -71,6 +79,7 @@ class GestureAccessibilityService : AccessibilityService() {
 
         gestureEngine.start()
         _serviceState.value = ServiceState.CONNECTED
+        updateImeVisibility()
 
         // 启动前台保活服务 — 关键：防止进程被杀后不恢复
         try {
@@ -103,13 +112,75 @@ class GestureAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        ) {
+            updateImeVisibility()
+        }
+        if (!::gestureEngine.isInitialized) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString() ?: return
+            val cls = event.className?.toString()
+            if (cls != null && isActivityClass(pkg, cls)) {
+                gestureEngine.onForegroundActivityChanged(pkg, cls)
+            }
             if (pkg != currentForegroundPackage) {
                 currentForegroundPackage = pkg
                 gestureEngine.onForegroundAppChanged(pkg)
             }
+        } else if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            activeAppPackage()?.let { gestureEngine.onActiveAppChanged(it) }
         }
+    }
+
+    /** "pkg/cls" → whether it is an activity (cached; PackageManager lookups are slow). */
+    private val activityClassCache = HashMap<String, Boolean>()
+
+    /**
+     * TYPE_WINDOW_STATE_CHANGED also fires for dialogs, popups and plain views
+     * (e.g. android.widget.FrameLayout); only real activities may change the block state.
+     */
+    private fun isActivityClass(pkg: String, cls: String): Boolean {
+        if (gestureEngine.blocklist.listsActivity(pkg, cls)) return true
+        val key = "$pkg/$cls"
+        activityClassCache[key]?.let { return it }
+        val result = try {
+            packageManager.getActivityInfo(ComponentName(pkg, cls), 0)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
+        if (activityClassCache.size > 512) activityClassCache.clear()
+        activityClassCache[key] = result
+        return result
+    }
+
+    /** Package of the active application window, if any. */
+    private fun activeAppPackage(): String? = try {
+        windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isActive }
+            ?.root?.packageName?.toString()
+    } catch (_: Exception) {
+        null
+    }
+
+    /** Finds the soft keyboard window (if visible) and tells the engine where its top is. */
+    private fun updateImeVisibility() {
+        if (!::gestureEngine.isInitialized) return
+        val top: Int? = try {
+            val r = Rect()
+            windows.asSequence()
+                .filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+                .mapNotNull { w ->
+                    w.getBoundsInScreen(r)
+                    if (r.width() > 0 && r.height() > 0) r.top else null
+                }
+                .minOrNull()
+        } catch (_: Exception) {
+            null
+        }
+        gestureEngine.setImeTop(top)
     }
 
     override fun onInterrupt() {
@@ -153,11 +224,23 @@ class GestureAccessibilityService : AccessibilityService() {
         return performGlobalAction(actionId)
     }
 
-    fun dispatchTap(x: Float, y: Float) {
+    /**
+     * Injects a tap (or long-press, if [durationMs] is long) at (x, y).
+     * [onDone] is always called once, whether the gesture completed, was cancelled or failed.
+     */
+    fun dispatchTap(x: Float, y: Float, durationMs: Long = 50L, onDone: () -> Unit = {}) {
         val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 1)
+        val stroke = GestureDescription.StrokeDescription(path, 0, durationMs.coerceIn(1L, 10_000L))
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        dispatchGesture(gesture, null, null)
+        val ok = try {
+            dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) = onDone()
+                override fun onCancelled(gestureDescription: GestureDescription?) = onDone()
+            }, null)
+        } catch (_: Exception) {
+            false
+        }
+        if (!ok) onDone()
     }
 
     enum class ServiceState { DISCONNECTED, CONNECTED }

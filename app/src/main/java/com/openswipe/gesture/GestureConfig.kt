@@ -2,11 +2,12 @@ package com.openswipe.gesture
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 
 data class GestureConfig(
     // 触发区域
     val edgeTriggerWidthDp: Float = 20f,
-    val bottomTriggerHeightDp: Float = 40f,
+    val bottomTriggerHeightDp: Float = com.openswipe.BuildConfig.DEFAULT_BOTTOM_HEIGHT_DP,
     val leftEnabled: Boolean = true,
     val rightEnabled: Boolean = true,
     val bottomEnabled: Boolean = true,
@@ -25,6 +26,13 @@ data class GestureConfig(
 
     // 长按
     val holdTimeMs: Long = 500L,
+
+    // Keyboard (IME) avoidance: remove edge sensors while the soft keyboard is showing
+    val disableBottomOnIme: Boolean = true,
+    val disableSidesOnIme: Boolean = false,
+
+    // Apps/activities in front of which all edge gestures are paused (see ForegroundBlocklist)
+    val blockedActivities: List<String> = DEFAULT_BLOCKED_ACTIVITIES,
 ) {
     companion object {
         val KEY_LEFT_ENABLED = booleanPreferencesKey("edge_left_enabled")
@@ -32,5 +40,12 @@ data class GestureConfig(
         val KEY_BOTTOM_ENABLED = booleanPreferencesKey("edge_bottom_enabled")
         val KEY_EDGE_TRIGGER_WIDTH = floatPreferencesKey("edge_trigger_width_dp")
         val KEY_BOTTOM_TRIGGER_HEIGHT = floatPreferencesKey("bottom_trigger_height_dp")
+        val KEY_DISABLE_BOTTOM_ON_IME = booleanPreferencesKey("disable_bottom_on_ime")
+        val KEY_DISABLE_SIDES_ON_IME = booleanPreferencesKey("disable_sides_on_ime")
+        /** Newline-separated list; absent = [DEFAULT_BLOCKED_ACTIVITIES]. */
+        val KEY_BLOCKED_ACTIVITIES = stringPreferencesKey("blocked_activities")
+
+        val DEFAULT_BLOCKED_ACTIVITIES: List<String> =
+            ForegroundBlocklist.parseList(com.openswipe.BuildConfig.DEFAULT_BLOCKED_ACTIVITIES)
     }
 }

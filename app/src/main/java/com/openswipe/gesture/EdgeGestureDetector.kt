@@ -14,7 +14,8 @@ class EdgeGestureDetector(
     private val scaledTouchSlop: Int,
     private val onGestureResult: (GestureResult) -> Unit,
     private val triggerMode: TriggerMode = TriggerMode.TOUCH,
-    private val onReplayTap: ((Float, Float) -> Unit)? = null,
+    /** Replays a tap/long-press (x, y, durationMs) to the app below when it wasn't a swipe. */
+    private val onReplayTap: ((Float, Float, Long) -> Unit)? = null,
 ) {
     private var state = GestureState.IDLE
     private val touchState = TouchState()
@@ -78,7 +79,10 @@ class EdgeGestureDetector(
         // In SWIPE mode: if we never detected an upward swipe, replay the tap
         if (triggerMode == TriggerMode.SWIPE) {
             if (state == GestureState.AWAITING_DIRECTION || state == GestureState.REJECTED) {
-                onReplayTap?.invoke(touchState.downX, touchState.downY)
+                onReplayTap?.invoke(
+                    touchState.downX, touchState.downY,
+                    System.currentTimeMillis() - touchState.downTime,
+                )
                 reset()
                 return
             }

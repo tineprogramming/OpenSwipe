@@ -33,7 +33,7 @@ fun ActionPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择动作") },
+        title = { Text("Choose action") },
         text = {
             Column(
                 modifier = Modifier
@@ -79,7 +79,7 @@ fun ActionPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text("Cancel")
             }
         },
     )
