@@ -1,5 +1,20 @@
 # Changelog (fork)
 
+## 1.0.5-fork-numen (versionCode 5)
+- **Fixed: the outer keyboard keys (q, p, a, l, z, m) couldn't be tapped.** On the
+  240px-wide screen the left and right edge strips (about 11px) sat on top of those keys,
+  and tap pass-through can't reach the keyboard window. Now, while the soft keyboard is
+  open, the left and right strips stop at the keyboard's top edge. Back still works above
+  the keyboard and every key is free. The strips go back to full height when the keyboard
+  hides, and follow it if it changes height.
+  - The keyboard's top edge comes from `TYPE_INPUT_METHOD` window bounds on
+    window-change events.
+  - If the keyboard covers nearly the whole screen (less than 24px left above it), the side
+    strips are removed while it is open.
+- Unchanged: the bottom edge still pauses while the keyboard is open, and the g4home lock
+  screen blocklist, package, signing key (installs over 1.0.4 with `pm install -r`),
+  minSdk 26 and default preset all stay the same.
+
 ## 1.0.4-fork-numen (versionCode 4)
 - **Gestures pause in front of blocked activities.** While a blocked app or activity is
   in front, all edge sensors are removed, so touches go straight to that app. The same

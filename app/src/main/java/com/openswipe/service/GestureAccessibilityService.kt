@@ -165,21 +165,22 @@ class GestureAccessibilityService : AccessibilityService() {
         null
     }
 
-    /** Checks the on-screen windows for a visible soft keyboard and tells the engine. */
+    /** Finds the soft keyboard window (if visible) and tells the engine where its top is. */
     private fun updateImeVisibility() {
         if (!::gestureEngine.isInitialized) return
-        val visible = try {
-            windows.any { w ->
-                w.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD && run {
-                    val r = Rect()
+        val top: Int? = try {
+            val r = Rect()
+            windows.asSequence()
+                .filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+                .mapNotNull { w ->
                     w.getBoundsInScreen(r)
-                    r.width() > 0 && r.height() > 0
+                    if (r.width() > 0 && r.height() > 0) r.top else null
                 }
-            }
+                .minOrNull()
         } catch (_: Exception) {
-            false
+            null
         }
-        gestureEngine.setImeVisible(visible)
+        gestureEngine.setImeTop(top)
     }
 
     override fun onInterrupt() {

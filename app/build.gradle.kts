@@ -12,8 +12,8 @@ android {
         applicationId = "com.openswipe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.4-fork"
+        versionCode = 5
+        versionName = "1.0.5-fork"
 
         // English-only resources (drops AndroidX translations too, keeps the APK small).
         @Suppress("DEPRECATION")

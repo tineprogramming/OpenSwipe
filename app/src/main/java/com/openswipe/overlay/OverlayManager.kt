@@ -49,6 +49,14 @@ class OverlayManager(
         updateWindow(tag)
     }
 
+    /** Changes a sensor window's height in place (no-op if unchanged or missing). */
+    fun setHeight(tag: String, heightPx: Int) {
+        val window = windows[tag] ?: return
+        if (window.params.height == heightPx) return
+        window.params.height = heightPx
+        updateWindow(tag)
+    }
+
     fun removeAll() {
         windows.keys.toList().forEach { removeWindow(it) }
     }

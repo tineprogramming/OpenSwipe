@@ -39,19 +39,35 @@ class GestureEngine(
     private var started = false
     private var lastRuleSet: CompiledRuleSet? = null
 
-    /** Whether the soft keyboard (IME) window is currently on screen. */
-    private var imeVisible = false
+    /** Screen Y (px) of the top of the soft keyboard window, or null when it is hidden. */
+    private var imeTopPx: Int? = null
 
     /**
-     * Called by the accessibility service when the IME window appears/disappears.
-     * Edges configured to avoid the keyboard have their sensor windows removed while
-     * it is visible, so touches on the keyboard's bottom row reach the IME.
+     * Called by the accessibility service when the IME window appears, moves or hides
+     * ([topPx] = its top edge in screen pixels, null = hidden).
+     *  - BOTTOM sensor is removed while it is visible (disableBottomOnIme).
+     *  - LEFT/RIGHT sensors are shortened to end at the keyboard's top, so Back still works
+     *    above it and the outer keys (q, p, a, l, z, m) are not covered.
+     *    (Tap pass-through can't reach the IME window, so overlapping it isn't an option.)
      */
-    fun setImeVisible(visible: Boolean) {
-        if (imeVisible == visible) return
-        imeVisible = visible
+    fun setImeTop(topPx: Int?) {
+        if (imeTopPx == topPx) return
+        imeTopPx = topPx
         if (!started) return
         syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
+        resizeSideSensors()
+    }
+
+    /** Height for a LEFT/RIGHT sensor: full screen, or down to the keyboard's top. */
+    private fun sideSensorHeight(screenHeight: Int): Int =
+        imeTopPx?.coerceIn(0, screenHeight) ?: screenHeight
+
+    private fun resizeSideSensors() {
+        val screenHeight = Resources.getSystem().displayMetrics.heightPixels
+        val h = sideSensorHeight(screenHeight)
+        for (edge in listOf(Edge.LEFT, Edge.RIGHT)) {
+            overlayManager.setHeight("sensor_${edge.name.lowercase()}", h)
+        }
     }
 
     /** Whether the foreground activity is on the blocklist (all edges paused). */
@@ -101,10 +117,11 @@ class GestureEngine(
 
     private fun isSuppressed(edge: Edge): Boolean {
         if (foregroundBlocked) return true
-        if (!imeVisible) return false
+        val imeTop = imeTopPx ?: return false
         return when (edge) {
             Edge.BOTTOM -> currentConfig.disableBottomOnIme
-            Edge.LEFT, Edge.RIGHT -> currentConfig.disableSidesOnIme
+            // Keyboard covering (almost) the whole screen leaves no room above it.
+            Edge.LEFT, Edge.RIGHT -> currentConfig.disableSidesOnIme || imeTop < MIN_SIDE_SENSOR_PX
         }
     }
 
@@ -219,7 +236,7 @@ class GestureEngine(
             Edge.LEFT -> {
                 val detector = createDetector(Edge.LEFT, screenHeight.toFloat())
                 val window = OverlayWindowFactory.createEdgeSensor(
-                    overlayManager.context, Edge.LEFT, edgeWidthPx, screenHeight,
+                    overlayManager.context, Edge.LEFT, edgeWidthPx, sideSensorHeight(screenHeight),
                     onTouchListener = this
                 )
                 detectors[Edge.LEFT] = detector
@@ -229,7 +246,7 @@ class GestureEngine(
             Edge.RIGHT -> {
                 val detector = createDetector(Edge.RIGHT, screenHeight.toFloat())
                 val window = OverlayWindowFactory.createEdgeSensor(
-                    overlayManager.context, Edge.RIGHT, edgeWidthPx, screenHeight,
+                    overlayManager.context, Edge.RIGHT, edgeWidthPx, sideSensorHeight(screenHeight),
                     onTouchListener = this
                 )
                 detectors[Edge.RIGHT] = detector
@@ -326,5 +343,7 @@ class GestureEngine(
         /** Time for WindowManager to apply the FLAG_NOT_TOUCHABLE change before injecting. */
         const val REPLAY_WINDOW_UPDATE_DELAY_MS = 40L
         const val MIN_TAP_DURATION_MS = 40L
+        /** Below this, a shortened side sensor is pointless; remove it instead. */
+        const val MIN_SIDE_SENSOR_PX = 24
     }
 }
