@@ -27,7 +27,8 @@ import java.io.File
  *   "version": 1,
  *   "settings": {
  *     "edgeTriggerWidthDp": 20, "bottomTriggerHeightDp": 40,
- *     "disableBottomOnIme": true, "disableSidesOnIme": false
+ *     "disableBottomOnIme": true, "disableSidesOnIme": false,
+ *     "blockedActivities": ["com.pkg/com.pkg.LockActivity", "com.whole.app"]
  *   },
  *   "rules": [ ... same objects as the rule serializer ... ]
  * }
@@ -126,6 +127,12 @@ object ConfigManager {
         if (s.has("bottomTriggerHeightDp")) prefs[GestureConfig.KEY_BOTTOM_TRIGGER_HEIGHT] = s.getDouble("bottomTriggerHeightDp").toFloat()
         if (s.has("disableBottomOnIme")) prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] = s.getBoolean("disableBottomOnIme")
         if (s.has("disableSidesOnIme")) prefs[GestureConfig.KEY_DISABLE_SIDES_ON_IME] = s.getBoolean("disableSidesOnIme")
+        // Replaces the whole list (export it first to start from the current one).
+        if (s.has("blockedActivities")) {
+            val arr = s.getJSONArray("blockedActivities")
+            prefs[GestureConfig.KEY_BLOCKED_ACTIVITIES] =
+                (0 until arr.length()).map { arr.getString(it).trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+        }
     }
 
     /** Current configuration (saved rules + settings) as JSON. */
@@ -138,6 +145,7 @@ object ConfigManager {
             put("bottomTriggerHeightDp", config.bottomTriggerHeightDp.toDouble())
             put("disableBottomOnIme", config.disableBottomOnIme)
             put("disableSidesOnIme", config.disableSidesOnIme)
+            put("blockedActivities", org.json.JSONArray(config.blockedActivities))
         })
         return root.toString(2)
     }

@@ -2,6 +2,7 @@ package com.openswipe.gesture
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 
 data class GestureConfig(
     // 触发区域
@@ -29,6 +30,9 @@ data class GestureConfig(
     // Keyboard (IME) avoidance: remove edge sensors while the soft keyboard is showing
     val disableBottomOnIme: Boolean = true,
     val disableSidesOnIme: Boolean = false,
+
+    // Apps/activities in front of which all edge gestures are paused (see ForegroundBlocklist)
+    val blockedActivities: List<String> = DEFAULT_BLOCKED_ACTIVITIES,
 ) {
     companion object {
         val KEY_LEFT_ENABLED = booleanPreferencesKey("edge_left_enabled")
@@ -38,5 +42,10 @@ data class GestureConfig(
         val KEY_BOTTOM_TRIGGER_HEIGHT = floatPreferencesKey("bottom_trigger_height_dp")
         val KEY_DISABLE_BOTTOM_ON_IME = booleanPreferencesKey("disable_bottom_on_ime")
         val KEY_DISABLE_SIDES_ON_IME = booleanPreferencesKey("disable_sides_on_ime")
+        /** Newline-separated list; absent = [DEFAULT_BLOCKED_ACTIVITIES]. */
+        val KEY_BLOCKED_ACTIVITIES = stringPreferencesKey("blocked_activities")
+
+        val DEFAULT_BLOCKED_ACTIVITIES: List<String> =
+            ForegroundBlocklist.parseList(com.openswipe.BuildConfig.DEFAULT_BLOCKED_ACTIVITIES)
     }
 }

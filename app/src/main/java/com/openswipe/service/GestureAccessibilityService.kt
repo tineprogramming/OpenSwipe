@@ -3,7 +3,9 @@ package com.openswipe.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
@@ -115,13 +117,52 @@ class GestureAccessibilityService : AccessibilityService() {
         ) {
             updateImeVisibility()
         }
+        if (!::gestureEngine.isInitialized) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString() ?: return
+            val cls = event.className?.toString()
+            if (cls != null && isActivityClass(pkg, cls)) {
+                gestureEngine.onForegroundActivityChanged(pkg, cls)
+            }
             if (pkg != currentForegroundPackage) {
                 currentForegroundPackage = pkg
                 gestureEngine.onForegroundAppChanged(pkg)
             }
+        } else if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            activeAppPackage()?.let { gestureEngine.onActiveAppChanged(it) }
         }
+    }
+
+    /** "pkg/cls" → whether it is an activity (cached; PackageManager lookups are slow). */
+    private val activityClassCache = HashMap<String, Boolean>()
+
+    /**
+     * TYPE_WINDOW_STATE_CHANGED also fires for dialogs, popups and plain views
+     * (e.g. android.widget.FrameLayout); only real activities may change the block state.
+     */
+    private fun isActivityClass(pkg: String, cls: String): Boolean {
+        if (gestureEngine.blocklist.listsActivity(pkg, cls)) return true
+        val key = "$pkg/$cls"
+        activityClassCache[key]?.let { return it }
+        val result = try {
+            packageManager.getActivityInfo(ComponentName(pkg, cls), 0)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
+        if (activityClassCache.size > 512) activityClassCache.clear()
+        activityClassCache[key] = result
+        return result
+    }
+
+    /** Package of the active application window, if any. */
+    private fun activeAppPackage(): String? = try {
+        windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isActive }
+            ?.root?.packageName?.toString()
+    } catch (_: Exception) {
+        null
     }
 
     /** Checks the on-screen windows for a visible soft keyboard and tells the engine. */

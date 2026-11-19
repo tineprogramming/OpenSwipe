@@ -26,13 +26,16 @@ jobs:
       - name: Build release APKs (numen + standard)
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleNumenRelease assembleStandardRelease
+          ./gradlew --no-daemon assembleNumenRelease assembleNumenDebug assembleStandardRelease
 
       - name: Collect APKs
         run: |
           mkdir -p out
           cp app/build/outputs/apk/numen/release/*.apk out/OpenSwipe-numen.apk
           cp app/build/outputs/apk/standard/release/*.apk out/OpenSwipe-standard.apk
+          VER=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          cp app/build/outputs/apk/numen/debug/*.apk "out/OpenSwipe-${VER}-numen-debug.apk"
+          cp CHANGELOG.md out/
           cp deploy/numen/openswipe.json deploy/numen/install.sh out/
           ls -la out
 
@@ -54,5 +57,7 @@ jobs:
           body: |
             Automatic build from `${{ github.ref_name }}` @ ${{ github.sha }}.
             - **OpenSwipe-numen.apk** — Numen Air U50 build (English, keyboard-safe defaults)
+            - **OpenSwipe-*-numen-debug.apk** — same, debug build (same signing key, installs over either)
+            See CHANGELOG.md.
             - **OpenSwipe-standard.apk** — generic build
           files: out/*

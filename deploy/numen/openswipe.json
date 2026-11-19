@@ -4,27 +4,58 @@
     "edgeTriggerWidthDp": 20,
     "bottomTriggerHeightDp": 20,
     "disableBottomOnIme": true,
-    "disableSidesOnIme": false
+    "disableSidesOnIme": false,
+    "blockedActivities": [
+      "com.glocalme.g4home/com.glocalme.basic.lock.LockScreenActivity",
+      "com.glocalme.g4home/com.glocalme.basic.lock.FirstLockScreenActivity"
+    ]
   },
   "rules": [
     {
       "id": "default_left",
-      "trigger": { "edge": "LEFT", "section": [0, 1], "gesture": "SWIPE" },
-      "action": { "id": "back" },
+      "trigger": {
+        "edge": "LEFT",
+        "section": [
+          0,
+          1
+        ],
+        "gesture": "SWIPE"
+      },
+      "action": {
+        "id": "back"
+      },
       "enabled": true,
       "triggerMode": "SWIPE"
     },
     {
       "id": "default_right",
-      "trigger": { "edge": "RIGHT", "section": [0, 1], "gesture": "SWIPE" },
-      "action": { "id": "back" },
+      "trigger": {
+        "edge": "RIGHT",
+        "section": [
+          0,
+          1
+        ],
+        "gesture": "SWIPE"
+      },
+      "action": {
+        "id": "back"
+      },
       "enabled": true,
       "triggerMode": "SWIPE"
     },
     {
       "id": "default_bottom",
-      "trigger": { "edge": "BOTTOM", "section": [0, 1], "gesture": "SWIPE" },
-      "action": { "id": "home" },
+      "trigger": {
+        "edge": "BOTTOM",
+        "section": [
+          0,
+          1
+        ],
+        "gesture": "SWIPE"
+      },
+      "action": {
+        "id": "home"
+      },
       "enabled": true,
       "triggerMode": "SWIPE"
     }

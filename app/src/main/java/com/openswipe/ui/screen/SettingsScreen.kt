@@ -14,6 +14,10 @@ import android.widget.Toast
 import androidx.compose.material3.Card
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Switch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.MaterialTheme
@@ -154,6 +158,46 @@ fun SettingsScreen(
                         )
                     },
                 )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Paused apps / activities ──
+        Text(
+            text = "Paused in these apps",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "All edge gestures are off while one of these is in front. " +
+                        "One per line: package/ActivityClass, or just package for the whole app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val saved = config.blockedActivities.joinToString("\n")
+                var draft by remember(saved) { mutableStateOf(saved) }
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    minLines = 2,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { viewModel.setBlockedActivities(draft) },
+                        enabled = draft != saved,
+                    ) { Text("Save") }
+                    OutlinedButton(onClick = { viewModel.resetBlockedActivities() }) { Text("Reset") }
+                }
             }
         }
 

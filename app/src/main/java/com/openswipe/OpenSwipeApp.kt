@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.openswipe.config.ConfigManager
+import com.openswipe.gesture.ForegroundBlocklist
 import com.openswipe.gesture.GestureConfig
 import com.openswipe.rule.CompiledRuleSet
 import com.openswipe.rule.GestureRuleGraph
@@ -52,6 +53,9 @@ class OpenSwipeApp : Application() {
                     bottomTriggerHeightDp = prefs[GestureConfig.KEY_BOTTOM_TRIGGER_HEIGHT] ?: BuildConfig.DEFAULT_BOTTOM_HEIGHT_DP,
                     disableBottomOnIme = prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] ?: true,
                     disableSidesOnIme = prefs[GestureConfig.KEY_DISABLE_SIDES_ON_IME] ?: false,
+                    blockedActivities = prefs[GestureConfig.KEY_BLOCKED_ACTIVITIES]
+                        ?.let { ForegroundBlocklist.parseList(it) }
+                        ?: GestureConfig.DEFAULT_BLOCKED_ACTIVITIES,
                 )
             }
             .stateIn(appScope, SharingStarted.Eagerly, GestureConfig())
@@ -94,6 +98,16 @@ class OpenSwipeApp : Application() {
 
     suspend fun updateDisableBottomOnIme(value: Boolean) {
         settingsDataStore.edit { prefs -> prefs[GestureConfig.KEY_DISABLE_BOTTOM_ON_IME] = value }
+    }
+
+    suspend fun updateBlockedActivities(entries: List<String>) {
+        settingsDataStore.edit { prefs ->
+            prefs[GestureConfig.KEY_BLOCKED_ACTIVITIES] = entries.joinToString("\n")
+        }
+    }
+
+    suspend fun resetBlockedActivities() {
+        settingsDataStore.edit { prefs -> prefs.remove(GestureConfig.KEY_BLOCKED_ACTIVITIES) }
     }
 
     suspend fun updateDisableSidesOnIme(value: Boolean) {

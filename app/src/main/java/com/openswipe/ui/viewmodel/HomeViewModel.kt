@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.openswipe.OpenSwipeApp
+import com.openswipe.gesture.ForegroundBlocklist
 import com.openswipe.gesture.GestureConfig
 import kotlinx.coroutines.flow.StateFlow
 import com.openswipe.config.ConfigManager
@@ -29,6 +30,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDisableSidesOnIme(value: Boolean) {
         viewModelScope.launch { app.updateDisableSidesOnIme(value) }
+    }
+
+    /** Saves the blocklist from a text field (one entry per line). */
+    fun setBlockedActivities(text: String) {
+        viewModelScope.launch {
+            app.updateBlockedActivities(ForegroundBlocklist.parseList(text))
+        }
+    }
+
+    fun resetBlockedActivities() {
+        viewModelScope.launch { app.resetBlockedActivities() }
     }
 
     /** Path of the config file used by Import/Export. */

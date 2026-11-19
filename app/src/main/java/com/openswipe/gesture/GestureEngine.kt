@@ -54,7 +54,53 @@ class GestureEngine(
         syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
     }
 
-    private fun isSuppressedByIme(edge: Edge): Boolean {
+    /** Whether the foreground activity is on the blocklist (all edges paused). */
+    private var foregroundBlocked = false
+    private var foregroundPkg: String? = null
+    private var foregroundCls: String? = null
+    private var blocklistSource: List<String>? = null
+    private var blocklistCache: ForegroundBlocklist = ForegroundBlocklist.EMPTY
+
+    /** Blocklist for the current config (rebuilt only when the list changes). */
+    val blocklist: ForegroundBlocklist
+        get() {
+            val src = currentConfig.blockedActivities
+            if (src != blocklistSource) {
+                blocklistSource = src
+                blocklistCache = ForegroundBlocklist(src)
+            }
+            return blocklistCache
+        }
+
+    /** Called by the service when a new *activity* comes to the front. */
+    fun onForegroundActivityChanged(packageName: String, className: String) {
+        foregroundPkg = packageName
+        foregroundCls = className
+        reevaluateForegroundBlock()
+    }
+
+    /**
+     * Safety net: the service saw a different app's window become active without an activity
+     * event we could classify. Only unblocks, never blocks.
+     */
+    fun onActiveAppChanged(packageName: String) {
+        if (foregroundBlocked && packageName != foregroundPkg) {
+            foregroundPkg = packageName
+            foregroundCls = null
+            reevaluateForegroundBlock()
+        }
+    }
+
+    private fun reevaluateForegroundBlock() {
+        val pkg = foregroundPkg
+        val blocked = pkg != null && blocklist.matches(pkg, foregroundCls)
+        if (blocked == foregroundBlocked) return
+        foregroundBlocked = blocked
+        if (started) syncEdges(compiledRuleSetFlow.value, rebuildSides = false, rebuildBottom = false)
+    }
+
+    private fun isSuppressed(edge: Edge): Boolean {
+        if (foregroundBlocked) return true
         if (!imeVisible) return false
         return when (edge) {
             Edge.BOTTOM -> currentConfig.disableBottomOnIme
@@ -63,7 +109,7 @@ class GestureEngine(
     }
 
     private fun shouldShow(edge: Edge, ruleSet: CompiledRuleSet): Boolean =
-        ruleSet.hasRulesFor(edge) && !isSuppressedByIme(edge)
+        ruleSet.hasRulesFor(edge) && !isSuppressed(edge)
 
     fun stop() {
         overlayManager.removeAll()
@@ -104,6 +150,10 @@ class GestureEngine(
     }
 
     private fun applyConfigDiff(old: GestureConfig, new: GestureConfig, ruleSet: CompiledRuleSet) {
+        if (old.blockedActivities != new.blockedActivities) {
+            val pkg = foregroundPkg
+            foregroundBlocked = pkg != null && blocklist.matches(pkg, foregroundCls)
+        }
         // If edge width changed, rebuild all side overlays
         val sideNeedsRebuild = old.edgeTriggerWidthDp != new.edgeTriggerWidthDp
         // If bottom height changed, rebuild bottom overlay
